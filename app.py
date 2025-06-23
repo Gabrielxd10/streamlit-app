@@ -9,28 +9,37 @@ import base64
 @st.cache_data
 def load_data():
     arquivo = 'Planilha completa.xlsx'
-    df = pd.read_excel(arquivo)
+    try:
+        df = pd.read_excel(arquivo)
+    except FileNotFoundError:
+        # Levanta exceção para ser tratada fora
+        raise FileNotFoundError(f"Arquivo '{arquivo}' não encontrado. Por favor, envie este arquivo para o repositório.")
     
-    # Conversão colunas numéricas
+    # Verificar colunas numéricas antes de converter
     cols_numericas = ['Consumo de materia natural_Cocho', 'Consumo_bebedouro', 'Peso médio']
     for col in cols_numericas:
         if col in df.columns:
             df[col] = df[col].astype(str).str.replace(',', '.').astype(float)
     
-    # Converter data e limpar
-    df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
-    df = df.dropna(subset=['Data'])
+    # Converter coluna Data
+    if 'Data' in df.columns:
+        df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
+        df = df.dropna(subset=['Data'])
+    else:
+        raise ValueError("Coluna 'Data' não encontrada no arquivo.")
     
-    # Função para tempo para minutos
+    # Função para converter tempo em minutos
     def tempo_para_minutos(t):
-        if pd.isnull(t): return 0
+        if pd.isnull(t):
+            return 0
         if isinstance(t, str):
             try:
-                h,m,s = map(int, t.split(':'))
-                return h*60 + m + s/60
-            except: return 0
+                h, m, s = map(int, t.split(':'))
+                return h * 60 + m + s / 60
+            except:
+                return 0
         elif hasattr(t, 'hour'):
-            return t.hour*60 + t.minute + t.second/60
+            return t.hour * 60 + t.minute + t.second / 60
         else:
             return 0
     
@@ -40,8 +49,11 @@ def load_data():
             df[col + '_min'] = df[col].apply(tempo_para_minutos)
     
     # Ordenar e calcular dias permanência
-    df = df.sort_values(['TAG', 'Data']).reset_index(drop=True)
-    df['dias_permanencia'] = df.groupby('TAG')['Data'].transform(lambda x: (x - x.min()).dt.days)
+    if 'TAG' in df.columns:
+        df = df.sort_values(['TAG', 'Data']).reset_index(drop=True)
+        df['dias_permanencia'] = df.groupby('TAG')['Data'].transform(lambda x: (x - x.min()).dt.days)
+    else:
+        raise ValueError("Coluna 'TAG' não encontrada no arquivo.")
     
     # Calcular ganho peso diário (GPD)
     if 'Peso médio' in df.columns:
@@ -54,7 +66,19 @@ def load_data():
     
     return df
 
-df = load_data()
+# --- Tentar carregar dados com tratamento de erros ---
+try:
+    df = load_data()
+except FileNotFoundError as e:
+    st.error(str(e))
+    st.stop()
+except ValueError as e:
+    st.error(str(e))
+    st.stop()
+
+if df.empty:
+    st.warning("Dados carregados estão vazios.")
+    st.stop()
 
 # --- Sidebar: filtros ---
 st.sidebar.title("Filtros")
