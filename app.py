@@ -8,7 +8,7 @@ import base64
 # --- 1. Carregar dados ---
 @st.cache_data
 def load_data():
-    arquivo = r'C:\Users\gabri\Desktop\Pasta Sistema\Planilha completa.xlsx'
+    arquivo = 'Planilha completa.xlsx'
     df = pd.read_excel(arquivo)
     
     # Conversão colunas numéricas
