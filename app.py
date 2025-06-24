@@ -9,7 +9,6 @@ import base64
 st.set_page_config(
     page_title="Análise de Consumo e Peso",
     page_icon="assets/icone.png",  # Substitua pelo caminho do seu ícone
-    layout="wide",
     initial_sidebar_state="expanded"
 )
 
