@@ -70,7 +70,7 @@ def load_data():
         df['dias_diff'] = df.groupby('TAG')['dias_permanencia'].diff()
         # Evitar divisão por zero ou valores inválidos
         df['GPD'] = (df['Peso médio'] - df['peso_anterior']) / df['dias_diff'].replace(0, float('nan'))
-        df['GPD'] = df['GPD'].fillna(0).replace([float "inf"), float('-inf')], 0)
+        df['GPD'] = df['GPD'].fillna(0).replace([float('inf'), float('-inf')], 0)
     else:
         df['GPD'] = 0
     
