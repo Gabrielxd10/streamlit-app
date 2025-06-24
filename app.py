@@ -157,8 +157,9 @@ def plot_evolucao_peso(df, tags):
         height=400
     )
     st.plotly_chart(fig, use_container_width=True)
+    return fig  # Retorna o objeto fig para uso no download
 
-plot_evolucao_peso(df_selected, selected_tags)
+fig_peso = plot_evolucao_peso(df_selected, selected_tags)
 
 def plot_consumo_vs_gpd(df, tags):
     fig = px.scatter(
@@ -262,28 +263,6 @@ def get_image_download_link(fig, filename, text):
         st.warning(f"Erro ao gerar a imagem para download: {str(e)}. Tente salvar o gráfico manualmente clicando com o botão direito.")
         return ""
 
-fig_peso = go.Figure()
-for tag in selected_tags:
-    dft = df_selected[df_selected['TAG'] == tag]
-    fig_peso.add_trace(go.Scatter(
-        x=dft['dias_permanencia'],
-        y=dft['Peso médio'],
-        mode='lines+markers',
-        name=f'TAG {tag}',
-        hovertemplate='Dia: %{x}<br>Peso: %{y:.2f} kg<br>Data: %{customdata|%d/%m/%Y}',
-        customdata=dft['Data']
-    ))
-fig_peso.update_layout(
-    title='Evolução do Peso Médio',
-    xaxis_title='Dias de permanência',
-    yaxis_title='Peso Médio (kg)',
-    hovermode='closest',
-    showlegend=True,
-    width=800,
-    height=400
-)
-
-st.plotly_chart(fig_peso, use_container_width=True)
 download_link = get_image_download_link(fig_peso, 'evolucao_peso.png', 'Download gráfico Evolução do Peso (PNG)')
 if download_link:
     st.markdown(download_link, unsafe_allow_html=True)
