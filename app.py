@@ -68,12 +68,28 @@ def load_data():
     else:
         raise ValueError("Coluna 'TAG' não encontrada no arquivo.")
     
+    # Consolidar dados por TAG e Data (média de valores numéricos)
+    df = df.groupby(['TAG', 'Data']).agg({
+        'Consumo de materia natural_Cocho': 'mean',
+        'Consumo_bebedouro': 'mean',
+        'Peso médio': 'mean',
+        'dias_permanencia': 'first',  # Manter o primeiro valor de dias_permanencia
+        'tempo de consumo_bebedouro_min': 'mean',
+        'Tempo de consumo_cocho_min': 'mean'
+    }).reset_index()
+    
+    # Detectar e remover duplicatas baseadas em TAG e Data (como segurança adicional)
+    duplicatas = df[df.duplicated(subset=['TAG', 'Data'], keep=False)]
+    if not duplicatas.empty:
+        st.warning(f"Duplicatas detectadas em TAG e Data após consolidação. Número de duplicatas: {len(duplicatas)}. Removendo duplicatas e mantendo a primeira ocorrência.")
+        df = df.drop_duplicates(subset=['TAG', 'Data'], keep='first')
+    
     # Calcular ganho peso diário (GPD) com proteção contra divisão por zero
     if 'Peso médio' in df.columns:
         df['peso_anterior'] = df.groupby('TAG')['Peso médio'].shift(1)
         df['dias_diff'] = df.groupby('TAG')['dias_permanencia'].diff()
-        # Verificar se os dados são válidos antes do cálculo
-        df['GPD'] = (df['Peso médio'] - df['peso_anterior']) / df['dias_diff'].replace(0, float('nan'))
+        # Usar .fillna(1) para o primeiro registro de cada TAG, evitando divisão por zero
+        df['GPD'] = (df['Peso médio'] - df['peso_anterior']) / df['dias_diff'].fillna(1)
         df['GPD'] = df['GPD'].fillna(0).replace([float('inf'), float('-inf')], 0)
         # Adicionar aviso se houver valores inválidos antes da substituição
         if df['GPD'].isin([float('inf'), float('-inf')]).any():
@@ -81,11 +97,8 @@ def load_data():
     else:
         df['GPD'] = 0
     
-    # Detectar e remover duplicatas baseadas em TAG e Data
-    duplicatas = df[df.duplicated(subset=['TAG', 'Data'], keep=False)]
-    if not duplicatas.empty:
-        st.warning(f"Duplicatas detectadas em TAG e Data. Número de duplicatas: {len(duplicatas)}. Removendo duplicatas e mantendo a primeira ocorrência.")
-        df = df.drop_duplicates(subset=['TAG', 'Data'], keep='first')
+    # Depuração: exibir dados após consolidação
+    st.write("Dados consolidados após load_data:", df[['TAG', 'Data', 'Consumo de materia natural_Cocho', 'Peso médio', 'GPD', 'dias_diff']].head())
     
     return df
 
@@ -180,13 +193,6 @@ def plot_consumo_vs_gpd(df, tags):
     # Preservar TAG como string e filtrar dados inválidos
     df_plot = df[df['TAG'].isin(tags)].copy()
     df_plot['TAG'] = df_plot['TAG'].astype(str)  # Garantir que TAG seja string
-    
-    # Consolidar dados por TAG e Data (média de valores numéricos)
-    df_plot = df_plot.groupby(['TAG', 'Data']).agg({
-        'Consumo de materia natural_Cocho': 'mean',
-        'GPD': 'mean',
-        'Peso médio': 'mean'
-    }).reset_index()
     
     # Identificar dados inválidos
     invalid_data = df_plot[
