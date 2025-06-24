@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+import plotly.express as px
+import plotly.graph_objects as go
 import io
 import base64
 
@@ -22,7 +22,6 @@ def load_data():
     try:
         df = pd.read_excel(arquivo)
     except FileNotFoundError:
-        # Levanta exceção para ser tratada fora
         raise FileNotFoundError(f"Arquivo '{arquivo}' não encontrado. Por favor, envie este arquivo para o repositório.")
     
     # Verificar colunas numéricas antes de converter
@@ -137,34 +136,51 @@ st.dataframe(resumo.style.format("{:.3f}"))
 st.subheader("Gráficos Comparativos")
 
 def plot_evolucao_peso(df, tags):
-    plt.figure(figsize=(10, 5))
+    fig = go.Figure()
     for tag in tags:
         dft = df[df['TAG'] == tag]
-        plt.plot(dft['dias_permanencia'], dft['Peso médio'], marker='o', label=f'TAG {tag}')
-    plt.title('Evolução do Peso Médio')
-    plt.xlabel('Dias de permanência')
-    plt.ylabel('Peso Médio (kg)')
-    plt.legend()
-    plt.grid(True)
-    st.pyplot(plt.gcf())
-    plt.close()
+        fig.add_trace(go.Scatter(
+            x=dft['dias_permanencia'],
+            y=dft['Peso médio'],
+            mode='lines+markers',
+            name=f'TAG {tag}',
+            hovertemplate='Dia: %{x}<br>Peso: %{y:.2f} kg<br>Data: %{customdata|%d/%m/%Y}',
+            customdata=dft['Data']
+        ))
+    fig.update_layout(
+        title='Evolução do Peso Médio',
+        xaxis_title='Dias de permanência',
+        yaxis_title='Peso Médio (kg)',
+        hovermode='closest',
+        showlegend=True,
+        width=800,
+        height=400
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
 plot_evolucao_peso(df_selected, selected_tags)
 
 def plot_consumo_vs_gpd(df, tags):
-    plt.figure(figsize=(10,6))
-    sns.scatterplot(data=df[df['TAG'].isin(tags)],
-                    x='Consumo de materia natural_Cocho',
-                    y='GPD',
-                    hue='TAG',
-                    palette='tab10',
-                    s=100)
-    plt.title('Consumo no Cocho vs Ganho de Peso Diário')
-    plt.xlabel('Consumo Cocho (kg/dia)')
-    plt.ylabel('Ganho de Peso Diário (kg)')
-    plt.grid(True)
-    st.pyplot(plt.gcf())
-    plt.close()
+    fig = px.scatter(
+        df[df['TAG'].isin(tags)],
+        x='Consumo de materia natural_Cocho',
+        y='GPD',
+        color='TAG',
+        size_max=10,
+        hover_data={'Data': '|%d/%m/%Y', 'Peso médio': ':.2f'},
+        title='Consumo no Cocho vs Ganho de Peso Diário',
+        labels={
+            'Consumo de materia natural_Cocho': 'Consumo Cocho (kg/dia)',
+            'GPD': 'Ganho de Peso Diário (kg)',
+            'Peso médio': 'Peso Médio (kg)'
+        }
+    )
+    fig.update_layout(
+        width=800,
+        height=400,
+        showlegend=True
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
 plot_consumo_vs_gpd(df_selected, selected_tags)
 
@@ -172,16 +188,38 @@ plot_consumo_vs_gpd(df_selected, selected_tags)
 st.subheader("Visualizações Extras")
 
 st.markdown("Histograma do Ganho de Peso Diário (GPD)")
-fig, ax = plt.subplots()
-sns.histplot(df_selected, x='GPD', hue='TAG', multiple='stack', ax=ax)
-st.pyplot(fig)
-plt.close()
+fig_hist = px.histogram(
+    df_selected,
+    x='GPD',
+    color='TAG',
+    barmode='stack',
+    title='Histograma do Ganho de Peso Diário (GPD)',
+    labels={'GPD': 'Ganho de Peso Diário (kg)'},
+    hover_data={'Data': '|%d/%m/%Y'}
+)
+fig_hist.update_layout(
+    width=800,
+    height=400,
+    showlegend=True
+)
+st.plotly_chart(fig_hist, use_container_width=True)
 
 st.markdown("Boxplot do Consumo no Cocho")
-fig2, ax2 = plt.subplots()
-sns.boxplot(data=df_selected, x='TAG', y='Consumo de materia natural_Cocho', ax=ax2)
-st.pyplot(fig2)
-plt.close()
+fig_box = px.box(
+    df_selected,
+    x='TAG',
+    y='Consumo de materia natural_Cocho',
+    color='TAG',
+    title='Boxplot do Consumo no Cocho',
+    labels={'Consumo de materia natural_Cocho': 'Consumo Cocho (kg/dia)'},
+    hover_data={'Data': '|%d/%m/%Y'}
+)
+fig_box.update_layout(
+    width=800,
+    height=400,
+    showlegend=True
+)
+st.plotly_chart(fig_box, use_container_width=True)
 
 # --- Destaques: alertas GPD negativo ---
 st.subheader("Alertas")
@@ -204,29 +242,44 @@ def to_excel(df):
 
 excel_data = to_excel(df_selected)
 
-st.download_button(label="Download dados filtrados em Excel",
-                   data=excel_data,
-                   file_name='dados_filtrados.xlsx',
-                   mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+st.download_button(
+    label="Download dados filtrados em Excel",
+    data=excel_data,
+    file_name='dados_filtrados.xlsx',
+    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+)
 
 # --- Download gráfico peso evolução como imagem ---
 def get_image_download_link(fig, filename, text):
     buf = io.BytesIO()
-    fig.savefig(buf, format='png')
+    fig.write_image(buf, format='png', width=800, height=400)
     buf.seek(0)
     b64 = base64.b64encode(buf.read()).decode()
     href = f'<a href="data:file/png;base64,{b64}" download="{filename}">{text}</a>'
     return href
 
-fig_peso = plt.figure(figsize=(10,5))
+fig_peso = go.Figure()
 for tag in selected_tags:
     dft = df_selected[df_selected['TAG'] == tag]
-    plt.plot(dft['dias_permanencia'], dft['Peso médio'], marker='o', label=f'TAG {tag}')
-plt.title('Evolução do Peso Médio')
-plt.xlabel('Dias de permanência')
-plt.ylabel('Peso Médio (kg)')
-plt.legend()
-plt.grid(True)
+    fig_peso.add_trace(go.Scatter(
+        x=dft['dias_permanencia'],
+        y=dft['Peso médio'],
+        mode='lines+markers',
+        name=f'TAG {tag}',
+        hovertemplate='Dia: %{x}<br>Peso: %{y:.2f} kg<br>Data: %{customdata|%d/%m/%Y}',
+        customdata=dft['Data']
+    ))
+fig_peso.update_layout(
+    title='Evolução do Peso Médio',
+    xaxis_title='Dias de permanência',
+    yaxis_title='Peso Médio (kg)',
+    hovermode='closest',
+    showlegend=True,
+    width=800,
+    height=400
+)
 
-st.markdown(get_image_download_link(fig_peso, 'evolucao_peso.png', 'Download gráfico Evolução do Peso (PNG)'), unsafe_allow_html=True)
-plt.close(fig_peso)
+st.markdown(
+    get_image_download_link(fig_peso, 'evolucao_peso.png', 'Download gráfico Evolução do Peso (PNG)'),
+    unsafe_allow_html=True
+)
