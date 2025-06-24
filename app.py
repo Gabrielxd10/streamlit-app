@@ -34,9 +34,9 @@ def load_data():
     if 'TAG' in df.columns:
         df['TAG'] = df['TAG'].astype(str)
     
-    # Converter coluna Data
+    # Converter e normalizar coluna Data
     if 'Data' in df.columns:
-        df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
+        df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce').dt.normalize()
         df = df.dropna(subset=['Data'])
     else:
         raise ValueError("Coluna 'Data' não encontrada no arquivo.")
@@ -67,6 +67,9 @@ def load_data():
         df['dias_permanencia'] = df.groupby('TAG')['Data'].transform(lambda x: (x - x.min()).dt.days)
     else:
         raise ValueError("Coluna 'TAG' não encontrada no arquivo.")
+    
+    # Exibir dados brutos antes da agregação para depuração
+    st.write("Dados brutos antes da agregação:", df[['TAG', 'Data', 'Consumo de materia natural_Cocho', 'Peso médio']].head())
     
     # Consolidar dados por TAG e Data (média de valores numéricos)
     df = df.groupby(['TAG', 'Data']).agg({
