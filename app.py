@@ -5,6 +5,17 @@ import seaborn as sns
 import io
 import base64
 
+# Configurar favicon e título da página
+st.set_page_config(
+    page_title="Análise de Consumo e Peso",
+    page_icon="assets/icone.png",  # Substitua pelo caminho do seu ícone
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Adicionar logo no canto superior esquerdo da interface principal
+st.image("assets/logo.png", width=150)  # Substitua pelo caminho do seu logo
+
 # --- 1. Carregar dados ---
 @st.cache_data
 def load_data():
