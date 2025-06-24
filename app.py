@@ -81,6 +81,12 @@ def load_data():
     else:
         df['GPD'] = 0
     
+    # Detectar e remover duplicatas baseadas em TAG e Data
+    duplicatas = df[df.duplicated(subset=['TAG', 'Data'], keep=False)]
+    if not duplicatas.empty:
+        st.warning(f"Duplicatas detectadas em TAG e Data. Número de duplicatas: {len(duplicatas)}. Removendo duplicatas e mantendo a primeira ocorrência.")
+        df = df.drop_duplicates(subset=['TAG', 'Data'], keep='first')
+    
     return df
 
 # --- Tentar carregar dados com tratamento de erros ---
@@ -174,6 +180,13 @@ def plot_consumo_vs_gpd(df, tags):
     # Preservar TAG como string e filtrar dados inválidos
     df_plot = df[df['TAG'].isin(tags)].copy()
     df_plot['TAG'] = df_plot['TAG'].astype(str)  # Garantir que TAG seja string
+    
+    # Consolidar dados por TAG e Data (média de valores numéricos)
+    df_plot = df_plot.groupby(['TAG', 'Data']).agg({
+        'Consumo de materia natural_Cocho': 'mean',
+        'GPD': 'mean',
+        'Peso médio': 'mean'
+    }).reset_index()
     
     # Identificar dados inválidos
     invalid_data = df_plot[
