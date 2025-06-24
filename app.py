@@ -30,6 +30,10 @@ def load_data():
         if col in df.columns:
             df[col] = pd.to_numeric(df[col].astype(str).str.replace(',', '.'), errors='coerce')
     
+    # Garantir que TAG seja tratado como string
+    if 'TAG' in df.columns:
+        df['TAG'] = df['TAG'].astype(str)
+    
     # Converter coluna Data
     if 'Data' in df.columns:
         df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
@@ -167,8 +171,11 @@ def plot_evolucao_peso(df, tags):
 fig_peso = plot_evolucao_peso(df_selected, selected_tags)
 
 def plot_consumo_vs_gpd(df, tags):
-    # Filtrar dados inválidos para o gráfico
+    # Preservar TAG como string e filtrar dados inválidos
     df_plot = df[df['TAG'].isin(tags)].copy()
+    df_plot['TAG'] = df_plot['TAG'].astype(str)  # Garantir que TAG seja string
+    
+    # Identificar dados inválidos
     invalid_data = df_plot[
         df_plot['Consumo de materia natural_Cocho'].isna() |
         df_plot['GPD'].isna() |
@@ -190,7 +197,8 @@ def plot_consumo_vs_gpd(df, tags):
         st.error("Nenhum dado válido para plotar o gráfico de Consumo vs GPD. Verifique os dados das TAGs selecionadas.")
         return
     
-    # Exibir dados brutos para depuração
+    # Exibir valores únicos de TAG para depuração
+    st.write("Valores únicos de TAG no gráfico:", df_plot['TAG'].unique())
     st.write("Dados usados no gráfico de Consumo vs GPD:", df_plot[['TAG', 'Consumo de materia natural_Cocho', 'GPD', 'Data']].head())
     
     fig = px.scatter(
