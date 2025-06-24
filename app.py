@@ -68,9 +68,6 @@ def load_data():
     else:
         raise ValueError("Coluna 'TAG' não encontrada no arquivo.")
     
-    # Exibir dados brutos antes da agregação para depuração
-    st.write("Dados brutos antes da agregação:", df[['TAG', 'Data', 'Consumo de materia natural_Cocho', 'Peso médio']].head())
-    
     # Consolidar dados por TAG e Data (média de valores numéricos)
     df = df.groupby(['TAG', 'Data']).agg({
         'Consumo de materia natural_Cocho': 'mean',
@@ -99,9 +96,6 @@ def load_data():
             st.warning("Valores infinitos detectados no cálculo de GPD antes da correção. Esses valores foram substituídos por 0.")
     else:
         df['GPD'] = 0
-    
-    # Depuração: exibir dados após consolidação
-    st.write("Dados consolidados após load_data:", df[['TAG', 'Data', 'Consumo de materia natural_Cocho', 'Peso médio', 'GPD', 'dias_diff']].head())
     
     return df
 
@@ -218,10 +212,6 @@ def plot_consumo_vs_gpd(df, tags):
     if df_plot.empty:
         st.error("Nenhum dado válido para plotar o gráfico de Consumo vs GPD. Verifique os dados das TAGs selecionadas.")
         return
-    
-    # Exibir valores únicos de TAG para depuração
-    st.write("Valores únicos de TAG no gráfico:", df_plot['TAG'].unique())
-    st.write("Dados usados no gráfico de Consumo vs GPD:", df_plot[['TAG', 'Consumo de materia natural_Cocho', 'GPD', 'Data']].head())
     
     fig = px.scatter(
         df_plot,
