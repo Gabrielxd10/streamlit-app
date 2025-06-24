@@ -124,7 +124,7 @@ st.subheader("Estatísticas Resumo por TAG")
 st.dataframe(resumo.style.format("{:.3f}"))
 
 # --- Gráficos comparativos ---
-st.subheader("Gráficos Comparativos")
+st.subheader("Gráficos Comparativ0s")
 
 def plot_evolucao_peso(df, tags):
     plt.figure(figsize=(10, 5))
