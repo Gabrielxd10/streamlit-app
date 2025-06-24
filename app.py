@@ -28,7 +28,7 @@ def load_data():
     cols_numericas = ['Consumo de materia natural_Cocho', 'Consumo_bebedouro', 'Peso médio']
     for col in cols_numericas:
         if col in df.columns:
-            df[col] = df[col].astype(str).str.replace(',', '.').astype(float)
+            df[col] = pd.to_numeric(df[col].astype(str).str.replace(',', '.'), errors='coerce')
     
     # Converter coluna Data
     if 'Data' in df.columns:
@@ -68,9 +68,12 @@ def load_data():
     if 'Peso médio' in df.columns:
         df['peso_anterior'] = df.groupby('TAG')['Peso médio'].shift(1)
         df['dias_diff'] = df.groupby('TAG')['dias_permanencia'].diff()
-        # Evitar divisão por zero ou valores inválidos
+        # Verificar se os dados são válidos antes do cálculo
         df['GPD'] = (df['Peso médio'] - df['peso_anterior']) / df['dias_diff'].replace(0, float('nan'))
         df['GPD'] = df['GPD'].fillna(0).replace([float('inf'), float('-inf')], 0)
+        # Adicionar aviso se houver valores inválidos antes da substituição
+        if df['GPD'].isin([float('inf'), float('-inf')]).any():
+            st.warning("Valores infinitos detectados no cálculo de GPD antes da correção. Esses valores foram substituídos por 0.")
     else:
         df['GPD'] = 0
     
@@ -155,7 +158,8 @@ def plot_evolucao_peso(df, tags):
         hovermode='closest',
         showlegend=True,
         width=800,
-        height=400
+        height=400,
+        template='plotly'  # Usa uma paleta de cores padrão para melhor distinção
     )
     st.plotly_chart(fig, use_container_width=True)
     return fig  # Retorna o objeto fig para uso no download
@@ -186,6 +190,9 @@ def plot_consumo_vs_gpd(df, tags):
         st.error("Nenhum dado válido para plotar o gráfico de Consumo vs GPD. Verifique os dados das TAGs selecionadas.")
         return
     
+    # Exibir dados brutos para depuração
+    st.write("Dados usados no gráfico de Consumo vs GPD:", df_plot[['TAG', 'Consumo de materia natural_Cocho', 'GPD', 'Data']].head())
+    
     fig = px.scatter(
         df_plot,
         x='Consumo de materia natural_Cocho',
@@ -198,12 +205,14 @@ def plot_consumo_vs_gpd(df, tags):
             'Consumo de materia natural_Cocho': 'Consumo Cocho (kg/dia)',
             'GPD': 'Ganho de Peso Diário (kg)',
             'Peso médio': 'Peso Médio (kg)'
-        }
+        },
+        color_discrete_sequence=px.colors.qualitative.Plotly  # Paleta de cores distinta
     )
     fig.update_layout(
         width=800,
         height=400,
-        showlegend=True
+        showlegend=True,
+        template='plotly'  # Template para melhor visualização
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -220,12 +229,14 @@ fig_hist = px.histogram(
     barmode='stack',
     title='Histograma do Ganho de Peso Diário (GPD)',
     labels={'GPD': 'Ganho de Peso Diário (kg)'},
-    hover_data={'Data': '|%d/%m/%Y'}
+    hover_data={'Data': '|%d/%m/%Y'},
+    color_discrete_sequence=px.colors.qualitative.Plotly  # Paleta de cores distinta
 )
 fig_hist.update_layout(
     width=800,
     height=400,
-    showlegend=True
+    showlegend=True,
+    template='plotly'
 )
 st.plotly_chart(fig_hist, use_container_width=True)
 
@@ -237,12 +248,14 @@ fig_box = px.box(
     color='TAG',
     title='Boxplot do Consumo no Cocho',
     labels={'Consumo de materia natural_Cocho': 'Consumo Cocho (kg/dia)'},
-    hover_data={'Data': '|%d/%m/%Y'}
+    hover_data={'Data': '|%d/%m/%Y'},
+    color_discrete_sequence=px.colors.qualitative.Plotly  # Paleta de cores distinta
 )
 fig_box.update_layout(
     width=800,
     height=400,
-    showlegend=True
+    showlegend=True,
+    template='plotly'
 )
 st.plotly_chart(fig_box, use_container_width=True)
 
