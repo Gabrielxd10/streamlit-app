@@ -251,12 +251,16 @@ st.download_button(
 
 # --- Download gráfico peso evolução como imagem ---
 def get_image_download_link(fig, filename, text):
-    buf = io.BytesIO()
-    fig.write_image(buf, format='png', width=800, height=400)
-    buf.seek(0)
-    b64 = base64.b64encode(buf.read()).decode()
-    href = f'<a href="data:file/png;base64,{b64}" download="{filename}">{text}</a>'
-    return href
+    try:
+        buf = io.BytesIO()
+        fig.write_image(buf, format='png', width=800, height=400)
+        buf.seek(0)
+        b64 = base64.b64encode(buf.read()).decode()
+        href = f'<a href="data:file/png;base64,{b64}" download="{filename}">{text}</a>'
+        return href
+    except Exception as e:
+        st.warning(f"Erro ao gerar a imagem para download: {str(e)}. Tente salvar o gráfico manualmente clicando com o botão direito.")
+        return ""
 
 fig_peso = go.Figure()
 for tag in selected_tags:
@@ -279,7 +283,7 @@ fig_peso.update_layout(
     height=400
 )
 
-st.markdown(
-    get_image_download_link(fig_peso, 'evolucao_peso.png', 'Download gráfico Evolução do Peso (PNG)'),
-    unsafe_allow_html=True
-)
+st.plotly_chart(fig_peso, use_container_width=True)
+download_link = get_image_download_link(fig_peso, 'evolucao_peso.png', 'Download gráfico Evolução do Peso (PNG)')
+if download_link:
+    st.markdown(download_link, unsafe_allow_html=True)
