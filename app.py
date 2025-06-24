@@ -64,12 +64,13 @@ def load_data():
     else:
         raise ValueError("Coluna 'TAG' não encontrada no arquivo.")
     
-    # Calcular ganho peso diário (GPD)
+    # Calcular ganho peso diário (GPD) com proteção contra divisão por zero
     if 'Peso médio' in df.columns:
         df['peso_anterior'] = df.groupby('TAG')['Peso médio'].shift(1)
         df['dias_diff'] = df.groupby('TAG')['dias_permanencia'].diff()
-        df['GPD'] = (df['Peso médio'] - df['peso_anterior']) / df['dias_diff']
-        df['GPD'] = df['GPD'].fillna(0)
+        # Evitar divisão por zero ou valores inválidos
+        df['GPD'] = (df['Peso médio'] - df['peso_anterior']) / df['dias_diff'].replace(0, float('nan'))
+        df['GPD'] = df['GPD'].fillna(0).replace([float "inf"), float('-inf')], 0)
     else:
         df['GPD'] = 0
     
@@ -162,8 +163,31 @@ def plot_evolucao_peso(df, tags):
 fig_peso = plot_evolucao_peso(df_selected, selected_tags)
 
 def plot_consumo_vs_gpd(df, tags):
+    # Filtrar dados inválidos para o gráfico
+    df_plot = df[df['TAG'].isin(tags)].copy()
+    invalid_data = df_plot[
+        df_plot['Consumo de materia natural_Cocho'].isna() |
+        df_plot['GPD'].isna() |
+        df_plot['Consumo de materia natural_Cocho'].isin([float('inf'), float('-inf')]) |
+        df_plot['GPD'].isin([float('inf'), float('-inf')])
+    ]
+    if not invalid_data.empty:
+        invalid_tags = invalid_data['TAG'].unique()
+        st.warning(f"Dados inválidos (NaN ou infinitos) encontrados para as TAGs: {', '.join(map(str, invalid_tags))}. Esses pontos foram removidos do gráfico.")
+    
+    df_plot = df_plot[
+        df_plot['Consumo de materia natural_Cocho'].notna() &
+        df_plot['GPD'].notna() &
+        ~df_plot['Consumo de materia natural_Cocho'].isin([float('inf'), float('-inf')]) &
+        ~df_plot['GPD'].isin([float('inf'), float('-inf')])
+    ]
+    
+    if df_plot.empty:
+        st.error("Nenhum dado válido para plotar o gráfico de Consumo vs GPD. Verifique os dados das TAGs selecionadas.")
+        return
+    
     fig = px.scatter(
-        df[df['TAG'].isin(tags)],
+        df_plot,
         x='Consumo de materia natural_Cocho',
         y='GPD',
         color='TAG',
@@ -250,19 +274,10 @@ st.download_button(
     mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 )
 
-# --- Download gráfico peso evolução como imagem ---
-def get_image_download_link(fig, filename, text):
-    try:
-        buf = io.BytesIO()
-        fig.write_image(buf, format='png', width=800, height=400)
-        buf.seek(0)
-        b64 = base64.b64encode(buf.read()).decode()
-        href = f'<a href="data:file/png;base64,{b64}" download="{filename}">{text}</a>'
-        return href
-    except Exception as e:
-        st.warning(f"Erro ao gerar a imagem para download: {str(e)}. Tente salvar o gráfico manualmente clicando com o botão direito.")
-        return ""
-
-download_link = get_image_download_link(fig_peso, 'evolucao_peso.png', 'Download gráfico Evolução do Peso (PNG)')
-if download_link:
-    st.markdown(download_link, unsafe_allow_html=True)
+# --- Download gráfico peso evolução como HTML ---
+st.download_button(
+    label="Download gráfico Evolução do Peso (HTML)",
+    data=fig_peso.to_html(),
+    file_name='evolucao_peso.html',
+    mime='text/html'
+)
